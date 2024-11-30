@@ -29,7 +29,6 @@ class NetworkHelper {
 
   // Save value to local storage
   Future<void> _saveCache(String key, dynamic value) async {
-    print('saving $key: $value');
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(key, json.encode(value));
   }
