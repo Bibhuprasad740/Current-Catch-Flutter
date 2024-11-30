@@ -3,16 +3,17 @@ import 'dart:developer';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-String apiKey = 'pub_291781a64e11f885397c5e924b3d23adae6a6';
+// String apiKey = 'pub_291781a64e11f885397c5e924b3d23adae6a6';
+String apiKey = 'pub_608972ba52f60831aab67bd199b9cd4006d52';
 String baseUrl = 'https://newsdata.io/api/1/latest';
-String country = 'us';
 String language = 'en';
 String category = 'politics,world';
 
 class NetworkHelper {
   // Helper function to generate a cache key based on type, searchString, and page
-  String _generateCacheKey(String type, String searchString, int page) {
-    return '$type|$searchString|$page';
+  String _generateCacheKey(
+      String type, String searchString, int page, String countryCode) {
+    return '$type|$searchString|$page|$countryCode';
   }
 
   // Fetch value from local storage
@@ -36,13 +37,15 @@ class NetworkHelper {
   Future<Map<String, dynamic>> fetchResponse({
     String searchString = 'World Affairs',
     int page = 1,
+    String countryCode = 'us',
   }) async {
     print('Start of fetch response');
 
     // Generate cache keys for data and cursor
-    final String dataCacheKey = _generateCacheKey('data', searchString, page);
+    final String dataCacheKey =
+        _generateCacheKey('data', searchString, page, countryCode);
     final String cursorCacheKey =
-        _generateCacheKey('cursor', searchString, page);
+        _generateCacheKey('cursor', searchString, page, countryCode);
 
     print('Data Cache key generated: $dataCacheKey');
     print('Cursor Cache key generated: $cursorCacheKey');
@@ -51,7 +54,7 @@ class NetworkHelper {
     if (page > 1) {
       // Fetch cursor for the previous page
       final String prevCursorCacheKey =
-          _generateCacheKey('cursor', searchString, page - 1);
+          _generateCacheKey('cursor', searchString, page - 1, countryCode);
       final prevCursor = await _getCache(prevCursorCacheKey);
 
       if (prevCursor == null) {
@@ -72,10 +75,10 @@ class NetworkHelper {
     print('No cached data found for: $dataCacheKey');
 
     String url =
-        '$baseUrl?q=$searchString&apikey=$apiKey&category=$category&country=$country&language=$language';
+        '$baseUrl?q=$searchString&apikey=$apiKey&category=$category&country=$countryCode&language=$language';
     if (page > 1) {
       final String prevCursorCacheKey =
-          _generateCacheKey('cursor', searchString, page - 1);
+          _generateCacheKey('cursor', searchString, page - 1, countryCode);
       final prevCursor = await _getCache(prevCursorCacheKey);
       if (prevCursor != null) {
         url += '&page=$prevCursor';

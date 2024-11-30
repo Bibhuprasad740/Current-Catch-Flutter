@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:news/resources/network_helper.dart';
+import 'package:news/screens/news_details_screen.dart';
 import 'package:news/widgets/news_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -44,9 +45,28 @@ class HomeScreenState extends State<HomeScreen> {
     },
   ];
 
+  // List of countries with their codes
+  final List<Map<String, String>> _countries = [
+    {'code': 'in', 'name': 'India'},
+    {'code': 'us', 'name': 'United States'},
+    {'code': 'pk', 'name': 'Pakistan'},
+    {'code': 'il', 'name': 'Israel'},
+    {'code': 'ru', 'name': 'Russia'},
+    {'code': 'bd', 'name': 'Bangladesh'},
+    {'code': 'cn', 'name': 'China'},
+    {'code': 'ca', 'name': 'Canada'},
+    {'code': 'fr', 'name': 'France'},
+    {'code': 'ir', 'name': 'Iran'},
+    {'code': 'gb', 'name': 'United Kingdom'},
+    {'code': 'au', 'name': 'Australia'},
+    {'code': 'de', 'name': 'Germany'},
+    {'code': 'jp', 'name': 'Japan'},
+  ];
+
   List<dynamic> _newsList = [];
   bool _isLoading = false;
   String _currentCategory = 'world_affairs';
+  String _currentCountry = 'us'; // Default to United States
   int _currentPage = 1;
 
   final helper = NetworkHelper();
@@ -78,6 +98,7 @@ class HomeScreenState extends State<HomeScreen> {
       final response = await helper.fetchResponse(
         searchString: category['searchQuery']!,
         page: page,
+        countryCode: _currentCountry, // Pass the country code
       );
 
       final fetchedNews = response['data'];
@@ -103,7 +124,8 @@ class HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No news data available for this category.'),
+          content:
+              Text('No news data available for this category and country.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -130,6 +152,15 @@ class HomeScreenState extends State<HomeScreen> {
     _fetchNews();
   }
 
+  void _selectCountry(String countryCode) {
+    setState(() {
+      _currentCountry = countryCode;
+      _currentPage = 1;
+      _newsList.clear(); // Clear current news list
+    });
+    _fetchNews();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -137,6 +168,7 @@ class HomeScreenState extends State<HomeScreen> {
         body: Column(
           children: [
             _buildCategorySelector(),
+            _buildCountrySelector(),
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -186,6 +218,136 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildCountrySelector() {
+    return GestureDetector(
+      onTap: _showCountrySelectionModal,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: BorderRadius.circular(10),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Image.asset(
+              'assets/images/${_currentCountry}.png',
+              width: 30,
+              height: 30,
+              fit: BoxFit.cover,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              _countries.firstWhere(
+                  (country) => country['code'] == _currentCountry)['name']!,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            const Icon(Icons.arrow_drop_down, color: Colors.white),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCountrySelectionModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.8,
+          minChildSize: 0.5,
+          maxChildSize: 0.9,
+          builder: (_, controller) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[900],
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'Select Country',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GridView.builder(
+                      controller: controller,
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        childAspectRatio: 0.8,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                      ),
+                      itemCount: _countries.length,
+                      itemBuilder: (context, index) {
+                        final country = _countries[index];
+                        return GestureDetector(
+                          onTap: () {
+                            _selectCountry(country['code']!);
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: _currentCountry == country['code']
+                                  ? Colors.blue[900]
+                                  : Colors.grey[800],
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image.asset(
+                                  'assets/images/${country['code']}.png',
+                                  width: 60,
+                                  height: 40,
+                                  fit: BoxFit.cover,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  country['name']!,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: _currentCountry == country['code']
+                                        ? Colors.white
+                                        : Colors.white70,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildNewsListView() {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 5),
@@ -194,7 +356,11 @@ class HomeScreenState extends State<HomeScreen> {
         final newsItem = _newsList[index];
         return NewsCard(
           index: index + 1,
-          onTap: () {}, // Handle article redirection
+          onTap: () {
+            Navigator.of(context).pushReplacementNamed(
+                NewsDetailsScreen.routeName,
+                arguments: {newsItem});
+          },
           article: newsItem,
         );
       },
