@@ -10,7 +10,7 @@ String language = 'en';
 String category = 'politics,world';
 
 class NetworkHelper {
-  // Helper function to generate a cache key based on searchString and page
+  // Helper function to generate a cache key based on type, searchString, and page
   String _generateCacheKey(String type, String searchString, int page) {
     return '$type|$searchString|$page';
   }
@@ -29,6 +29,7 @@ class NetworkHelper {
 
   // Save value to local storage
   Future<void> _saveCache(String key, dynamic value) async {
+    print('saving $key: $value');
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(key, json.encode(value));
   }
@@ -38,22 +39,48 @@ class NetworkHelper {
     int page = 1,
   }) async {
     print('Start of fetch response');
-    // Generate cache key for this request
-    final String cacheKey = _generateCacheKey('data', searchString, page);
-    print('Cache key generated: $cacheKey');
 
-    // Try fetching cached data from local storage
-    final cachedResponse = await _getCache(cacheKey);
+    // Generate cache keys for data and cursor
+    final String dataCacheKey = _generateCacheKey('data', searchString, page);
+    final String cursorCacheKey =
+        _generateCacheKey('cursor', searchString, page);
+
+    print('Data Cache key generated: $dataCacheKey');
+    print('Cursor Cache key generated: $cursorCacheKey');
+
+    // Check for cached data for the current page
+    if (page > 1) {
+      // Fetch cursor for the previous page
+      final String prevCursorCacheKey =
+          _generateCacheKey('cursor', searchString, page - 1);
+      final prevCursor = await _getCache(prevCursorCacheKey);
+
+      if (prevCursor == null) {
+        print(
+            'No cursor found for previous page. Cannot fetch data for page $page.');
+        return {'data': []};
+      }
+
+      print('Cursor found for previous page: $prevCursor');
+    }
+
+    // Try fetching cached data for the current page
+    final cachedResponse = await _getCache(dataCacheKey);
     if (cachedResponse != null) {
-      print('Returning cached data for: $cacheKey');
+      print('Returning cached data for: $dataCacheKey');
       return {'data': cachedResponse};
     }
-    print('No cached data found for: $cacheKey');
+    print('No cached data found for: $dataCacheKey');
 
     String url =
-        '$baseUrl?q=$searchString&apikey=$apiKey&category=$category&country=$country';
+        '$baseUrl?q=$searchString&apikey=$apiKey&category=$category&country=$country&language=$language';
     if (page > 1) {
-      url += '&page=$page';
+      final String prevCursorCacheKey =
+          _generateCacheKey('cursor', searchString, page - 1);
+      final prevCursor = await _getCache(prevCursorCacheKey);
+      if (prevCursor != null) {
+        url += '&page=$prevCursor';
+      }
     }
 
     print('Fetching data from: $url');
@@ -65,9 +92,13 @@ class NetworkHelper {
         log('Data fetched successfully for: $searchString');
 
         final List<dynamic> results = response.data['results'];
+        final String? nextCursor = response.data['nextPage'];
 
-        // Save the fetched data to local storage
-        await _saveCache(cacheKey, results);
+        // Save the fetched data and cursor to local storage
+        await _saveCache(dataCacheKey, results);
+        if (nextCursor != null) {
+          await _saveCache(cursorCacheKey, nextCursor);
+        }
 
         return {
           'data': results,
@@ -95,7 +126,7 @@ class NetworkHelper {
     }
   }
 
-  // Optional: Method to clear all cached data from local storage
+  // Clear all cached data from local storage
   Future<void> clearCache() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
