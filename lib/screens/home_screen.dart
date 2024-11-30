@@ -47,6 +47,7 @@ class HomeScreenState extends State<HomeScreen> {
   List<dynamic> _newsList = [];
   bool _isLoading = false;
   String _currentCategory = 'world_affairs';
+  int _currentPage = 1;
 
   final helper = NetworkHelper();
 
@@ -61,7 +62,7 @@ class HomeScreenState extends State<HomeScreen> {
     await helper.clearCache();
   }
 
-  Future<void> _fetchNews() async {
+  Future<void> _fetchNews({int page = 1}) async {
     try {
       print('Starting to fetch news');
       final category = _newsCategories.firstWhere(
@@ -71,11 +72,12 @@ class HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         _isLoading = true;
+        _currentPage = page;
       });
 
       final response = await helper.fetchResponse(
         searchString: category['searchQuery']!,
-        page: 1, // Fetch all items without relying on pagination
+        page: page,
       );
 
       final fetchedNews = response['data'];
@@ -122,6 +124,7 @@ class HomeScreenState extends State<HomeScreen> {
   void _selectCategory(String categoryKey) {
     setState(() {
       _currentCategory = categoryKey;
+      _currentPage = 1;
       _newsList.clear(); // Clear current news list
     });
     _fetchNews();
@@ -147,6 +150,7 @@ class HomeScreenState extends State<HomeScreen> {
                           : _buildNewsListView(),
                     ),
             ),
+            _buildPaginationControls(),
           ],
         ),
       ),
@@ -194,6 +198,56 @@ class HomeScreenState extends State<HomeScreen> {
           article: newsItem,
         );
       },
+    );
+  }
+
+  Widget _buildPaginationControls() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          ElevatedButton(
+            onPressed: _currentPage > 1
+                ? () => _fetchNews(page: _currentPage - 1)
+                : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[900],
+              foregroundColor: Colors.white,
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.arrow_back),
+                SizedBox(width: 5),
+                Text('Previous'),
+              ],
+            ),
+          ),
+          Text(
+            'Page $_currentPage',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          ElevatedButton(
+            onPressed: _newsList.isNotEmpty
+                ? () => _fetchNews(page: _currentPage + 1)
+                : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[900],
+              foregroundColor: Colors.white,
+            ),
+            child: const Row(
+              children: [
+                Text('Next'),
+                SizedBox(width: 5),
+                Icon(Icons.arrow_forward),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
